@@ -31,8 +31,7 @@ public class TestMyHashMap {
         for (int i = 0; i < 455; i++) {
             b.put("hi" + i, 1);
             //make sure put is working via containsKey and get
-            assertTrue(null != b.get("hi" + i)
-                    && b.containsKey("hi" + i));
+            assertTrue(null != b.get("hi" + i) && b.containsKey("hi" + i));
         }
         b.clear();
         assertEquals(0, b.size());
@@ -110,6 +109,7 @@ public class TestMyHashMap {
         Set<String> keySet = b.keySet();
         assertTrue(values.containsAll(keySet));
         assertTrue(keySet.containsAll(values));
+
     }
 
     // Test for general functionality and that the properties of Maps hold.
