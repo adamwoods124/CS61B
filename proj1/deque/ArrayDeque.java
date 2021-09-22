@@ -2,7 +2,7 @@ package deque;
 
 import java.util.Iterator;
 
-public class ArrayDeque<T> implements Iterable<T>, Deque<T>{
+public class ArrayDeque<T> implements Iterable<T>, Deque<T> {
     private T[] items;
     private int nextFirst;
     private int nextLast;
@@ -10,17 +10,17 @@ public class ArrayDeque<T> implements Iterable<T>, Deque<T>{
 
     // Default constructor
     public ArrayDeque() {
-        items = (T[])new Object[8];
+        items = (T[]) new Object[8];
         size = 0;
         nextFirst = 3;
         nextLast = 4;
     }
 
     // Resizes array when there is not enough room left
-    public void resize(int newSize) {
-        T[] newItems = (T[])new Object[newSize];
+    private void resize(int newSize) {
+        T[] newItems = (T[]) new Object[newSize];
         int start = newSize / 4;
-        for(int i = 0; i < size; i++) {
+        for (int i = 0; i < size; i++) {
             newItems[start + i] = get(i);
         }
         items = newItems;
@@ -29,8 +29,8 @@ public class ArrayDeque<T> implements Iterable<T>, Deque<T>{
     }
 
     // Shrinks underlying array length when removing elements, if necessary
-    public void downscale() {
-        if(items.length > 16 && (double)size / items.length < 0.25){
+    private void downscale() {
+        if (items.length > 16 && (double) size / items.length < 0.25) {
             resize(items.length / 2);
         }
     }
@@ -38,11 +38,11 @@ public class ArrayDeque<T> implements Iterable<T>, Deque<T>{
     // Adds element to start of array
     @Override
     public void addFirst(T item) {
-        if(size == items.length) {
+        if (size == items.length) {
             resize(size * 2);
         }
         items[nextFirst] = item;
-        nextFirst --;
+        nextFirst--;
         nextFirst = Math.floorMod(nextFirst, items.length);
         size++;
     }
@@ -50,7 +50,7 @@ public class ArrayDeque<T> implements Iterable<T>, Deque<T>{
     // Adds element to end of array
     @Override
     public void addLast(T item) {
-        if(size == items.length) {
+        if (size == items.length) {
             resize(size * 2);
         }
         items[nextLast] = item;
@@ -70,7 +70,7 @@ public class ArrayDeque<T> implements Iterable<T>, Deque<T>{
     public void printDeque() {
         String str = "";
         int start = Math.floorMod(nextFirst + 1, items.length);
-        for(int i = 0; i < size; i++) {
+        for (int i = 0; i < size; i++) {
             str += items[Math.floorMod(start + i, items.length)] + " ";
         }
         str = str.trim();
@@ -99,7 +99,9 @@ public class ArrayDeque<T> implements Iterable<T>, Deque<T>{
     // Gets the item at the specified index
     @Override
     public T get(int index) {
-        if(index > size) return null;
+        if (index > size) {
+            return null;
+        }
         return items[Math.floorMod(nextFirst + 1 + index, items.length)];
     }
 

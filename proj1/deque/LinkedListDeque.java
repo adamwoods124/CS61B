@@ -2,15 +2,15 @@ package deque;
 
 import java.util.Iterator;
 
-public class LinkedListDeque<T> implements Iterable<T>, Deque<T>{
+public class LinkedListDeque<T> implements Iterable<T>, Deque<T> {
 
     /* Declaring Node class that makes up the list */
     private static class Node<T> {
-        public T item;
-        public Node next;
-        public Node last;
+        private T item;
+        private Node next;
+        private Node last;
 
-        public Node(T item, Node next, Node last) {
+        Node(T item, Node next, Node last) {
             this.item = item;
             this.next = next;
             this.last = last;
@@ -58,7 +58,7 @@ public class LinkedListDeque<T> implements Iterable<T>, Deque<T>{
     public void printDeque() {
         String str = "";
         Node p = sentinel.next;
-        while(p != sentinel) {
+        while (p != sentinel) {
             str += p.item + "  ";
             p = p.next;
         }
@@ -69,7 +69,7 @@ public class LinkedListDeque<T> implements Iterable<T>, Deque<T>{
     /* Removes first item from list */
     @Override
     public T removeFirst() {
-        if(size == 0) {
+        if (size == 0) {
             return null;
         }
         Node p = sentinel.next;
@@ -82,7 +82,7 @@ public class LinkedListDeque<T> implements Iterable<T>, Deque<T>{
     /* Removes last item from list */
     @Override
     public T removeLast() {
-        if(size == 0) {
+        if (size == 0) {
             return null;
         }
         Node p = sentinel.last;
@@ -97,7 +97,7 @@ public class LinkedListDeque<T> implements Iterable<T>, Deque<T>{
     public T get(int index) {
         int current = 0;
         Node p = sentinel.next;
-        while(current < index){
+        while (current < index) {
             p = p.next;
             current++;
         }
@@ -111,10 +111,9 @@ public class LinkedListDeque<T> implements Iterable<T>, Deque<T>{
     }
 
     private Node getRecursiveHelper(Node p, int index) {
-        if(index == 0){
+        if (index == 0){
             return p;
-        }
-        else {
+         } else {
             return getRecursiveHelper(p.next, index - 1);
         }
     }
