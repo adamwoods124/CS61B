@@ -4,7 +4,9 @@ package gitlet;
 
 import java.io.File;
 import java.io.Serializable;
+import java.text.SimpleDateFormat;
 import java.util.Date; // TODO: You'll likely use this in this class
+import java.util.LinkedList;
 import java.util.TreeMap;
 import static gitlet.Utils.*;
 
@@ -20,21 +22,23 @@ public class Commit implements Serializable {
     /** Timestamp */
     public Date date;
     /** Parent of the commit */
-    public static String parent;
+    public LinkedList<String> parents;
+    //public static String parent;
     public TreeMap<String, String> map;
 
     public Commit() {
         this.message = "initial commit";
         this.date = new Date(0);
-        this.parent = null;
+        this.parents = null;
         this.map = new TreeMap<>();
     }
 
     public Commit(String message, String parent) {
         this.message = message;
         this.date = new Date();
-        this.parent = parent;
-        File f = Utils.join(System.getProperty("user.dir"), ".gitlet", "commits", parent);
+        this.parents = new LinkedList<>();
+        this.parents.add(parent);
+        File f = Utils.join(System.getProperty("user.dir"), ".gitlet", "commits", parent.substring(0, 2), parent);
         Commit c = Utils.readObject(f, Commit.class);
         this.map = c.map;
         File stage = Utils.join(System.getProperty("user.dir"), ".gitlet", "stage", "add");
@@ -43,5 +47,13 @@ public class Commit implements Serializable {
         }
     }
 
-    /* TODO: fill in the rest of this class. */
+    public String getDate() {
+        SimpleDateFormat df = new SimpleDateFormat("E MMM d hh:mm:ss y Z");
+        return df.format(date);
+    }
+
+    public String getSha() {
+        return sha1(serialize(this));
+    }
+
 }

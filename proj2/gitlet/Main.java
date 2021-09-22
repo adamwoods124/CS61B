@@ -19,10 +19,11 @@ public class Main {
         String firstArg = args[0];
         switch(firstArg) {
             case "init":
+                checkArgs(args, 1);
                 Repository.init();
                 break;
             case "add":
-                checkArgs("add", args, 2);
+                checkArgs(args, 2);
                 Repository.add(args[1]);
                 break;
             case "commit":
@@ -30,11 +31,35 @@ public class Main {
                     System.out.println("Please enter a commit message.");
                     break;
                 }
-                checkArgs("commit", args, 2);
+                checkArgs(args, 2);
                 Repository.commit(args[1]);
                 break;
             case "checkout":
                 checkoutHelper(args);
+                break;
+            case "rm":
+                checkArgs(args, 2);
+                Repository.remove(args[1]);
+                break;
+            case "log":
+                checkArgs(args, 1);
+                Repository.log();
+                break;
+            case "global-log":
+                checkArgs(args, 1);
+                Repository.globalLog();
+                break;
+            case "find":
+                checkArgs(args, 2);
+                Repository.find(args[1]);
+                break;
+            case "status":
+                checkArgs(args, 1);
+                Repository.status();
+                break;
+            case "branch":
+                checkArgs(args, 2);
+                Repository.branch(args[1]);
                 break;
             default:
                 System.out.println("No command with that name.");
@@ -44,9 +69,9 @@ public class Main {
         return;
     }
 
-    public static void checkArgs(String cmd, String[] args, int n) {
+    public static void checkArgs(String[] args, int n) {
         if(args.length != n) {
-            throw new RuntimeException("Incorrect number of arguments for command " + cmd);
+            throw new RuntimeException("Incorrect number of arguments.");
         }
     }
 
@@ -54,7 +79,7 @@ public class Main {
         if(args.length == 3) {
             Repository.checkoutFile(args[2]);
         }
-        else if(args.length == 1) {
+        else if(args.length == 4) {
             Repository.checkoutCommit(args[1], args[3]);
         }
         else if(args.length == 2) {

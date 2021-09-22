@@ -30,11 +30,6 @@ public class LinkedListDeque<T> implements Iterable<T>, Deque<T>{
         size = 0;
     }
 
-    public LinkedListDeque(T item) {
-        sentinel = new Node(null, null, null);
-        sentinel.next = new Node(item, sentinel, sentinel);
-        size = 1;
-    }
 
     /* Add to front and back of list */
     @Override
@@ -115,7 +110,7 @@ public class LinkedListDeque<T> implements Iterable<T>, Deque<T>{
         return (T) getRecursiveHelper(p, index).item;
     }
 
-    public Node getRecursiveHelper(Node p, int index) {
+    private Node getRecursiveHelper(Node p, int index) {
         if(index == 0){
             return p;
         }

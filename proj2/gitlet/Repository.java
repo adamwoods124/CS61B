@@ -3,6 +3,7 @@ package gitlet;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Objects;
 
 
 import static gitlet.Utils.*;
@@ -16,13 +17,6 @@ import static gitlet.Utils.*;
  *  @author Adam Woods
  */
 public class Repository {
-    /**
-     * TODO: add instance variables here.
-     *
-     * List all instance variables of the Repository class here with a useful
-     * comment above them describing what that variable represents and how that
-     * variable is used. We've provided two examples for you.
-     */
 
     /** The current working directory. */
     public static final File CWD = new File(System.getProperty("user.dir"));
@@ -40,17 +34,16 @@ public class Repository {
     /* TODO: fill in the rest of this class. */
 
     /**
-     * Initializes empty gitlet repository with an empty commit
-     * Throws exception if a gitlet repo is already initialized
+     * Create initial file structure
      * .gitlet
-     *      COMMITS
-     *          commit object files
-     *          BRANCHES
-     *              HEAD
-     *      BLOBS
-     *      STAGE
-     *          ADD
-     *          REMOVE
+     *      blobs
+     *          hashed blob files
+     *      commits
+     *          folders named by first 6 digits of sha
+     *              actual sha files
+     *      stage
+     *          add
+     *          rm
      */
     public static void init() {
         if(GITLET_DIR.exists()) {
@@ -58,14 +51,22 @@ public class Repository {
             return;
         }
         makeRepositories();
+
+
+         // Create initial commit and serialize it for storage
         Commit initialCommit = new Commit();
         byte[] serializedInitialCommit = serialize(initialCommit);
-        File commitFile = join(COMMITS, sha1(serializedInitialCommit));
+
+        // Create folder with first 2 digits of commit sha as well as file that will hold full sha
+        File commitDir = join(COMMITS, sha1(serializedInitialCommit).substring(0, 2));
+        commitDir.mkdir();
+        File commitFile = join(commitDir, sha1(serializedInitialCommit));
         try {
             commitFile.createNewFile();
         } catch(Exception e) {
             System.out.println("Error creating commit file.");
         }
+        // Saving the commit persistently
         writeObject(commitFile, initialCommit);
         try {
             MASTER.createNewFile();
@@ -79,25 +80,32 @@ public class Repository {
      * @param name gives the name of the file to be added to staging area.
      */
     public static void add(String name) {
-        /**
-         * TODO Unstage if file is identical to version in previous commit
-         */
+        // Saves file that will be added and errors if it does not exist
         File cwdFile = join(CWD, name);
         if(!cwdFile.exists()) {
             System.out.println("File does not exist.");
             return;
         }
+        // Sha the contents of the file to be added, and return if it is already saved in the current head commit
         String sha = sha1(readContents(cwdFile));
         if(alreadyCommitted(name, sha)) {
             return;
         }
+
+        // Create file in the add directory if it needs to be added to staging area
         File addFile = join(ADD, name);
         if(!addFile.exists()) {
             try {
                 addFile.createNewFile();
-            } catch (Exception e){}
+            } catch (Exception e){
+                System.out.println("Cannot create file.");
+            }
         }
+
+        // Write the sha of contents (pointer to the blob where contents are saved) to the file in the add directory
         writeContents(addFile, sha);
+
+        // Get blob contents and write them to file in the add directory
         File blob = join(BLOBS, sha);
         if(blob.exists()) {
             return;
@@ -113,26 +121,127 @@ public class Repository {
     }
 
     public static void commit(String message) {
-        if(ADD.listFiles().length == 0) {
+        // Stop if staging area is empty
+        if(ADD.listFiles().length == 0 && REMOVE.listFiles().length == 0) {
             System.out.println("No changes added to the commit.");
             return;
         }
+        // Get sha of the current head commit, and create a new commit that is a clone of it
         File head = join(BRANCHES, branch);
         String headSha = readContentsAsString(head);
         Commit c = new Commit(message, headSha);
+
+        // Change head pointer to new commit
         String newHead = sha1(serialize(c));
-        File f = join(COMMITS, newHead);
+        File shortDir = join(COMMITS, newHead.substring(0, 2));
+        if(!shortDir.exists()) {
+            shortDir.mkdir();
+        }
+        File f = join(shortDir, newHead);
+        try {
+            f.createNewFile();
+        } catch(Exception e) {}
+        // Save commit persistently
         writeObject(f, c);
         writeContents(head, newHead);
+
+        // Clear staging area
         for(File z : ADD.listFiles()) {
-            if(!z.isDirectory()) {
-                z.delete();
+            z.delete();
+        }
+
+        for(File z : REMOVE.listFiles()) {
+            c.map.remove(z.getName());
+            z.delete();
+        }
+    }
+
+    public static void remove(String fileName) {
+        File f = join(ADD, fileName);
+        Commit c = getHead();
+        if(!f.exists() && !c.map.containsKey(fileName)) {
+            System.out.println("No reason to remove the file.");
+            return;
+        }
+        if(f.exists()) {
+            f.delete();
+        }
+        File m = join(REMOVE, fileName);
+        try {
+            m.createNewFile();
+        } catch (Exception e) {}
+        writeContents(m, readContentsAsString(join(CWD, fileName)));
+        if(c.map.containsKey(fileName)) {
+            join(CWD, fileName).delete();
+        }
+
+    }
+
+    public static void log() {
+        Commit c = getHead();
+        String sha = readContentsAsString(join(BRANCHES, branch));
+        while(c.parents != null) {
+            if(c.parents.size() == 1) {
+                System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", sha, c.getDate(), c.message);
+                c = getCommit(c.parents.get(0));
+                sha = c.getSha();
+            } else {
+                System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n", sha, c.getDate(), c.parents.get(0).substring(0, 7), c.parents.get(1).substring(0, 7), c.message);
+                c = getCommit(c.parents.get(0));
+                sha = c.getSha();
+            }
+        }
+        System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", sha, c.getDate(), c.message);
+    }
+
+    public static void globalLog() {
+        for(File n : COMMITS.listFiles()) {
+            if(!n.getName().equals("branches")) {
+                for(File f : n.listFiles()) {
+                    Commit c = readObject(f, Commit.class);
+                    if(c.parents.size() == 1) {
+                        System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", c.getSha(), c.getDate(), c.message);
+                    } else {
+                        System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n", c.getSha(), c.getDate(), c.parents.get(0).substring(0, 7), c.parents.get(1).substring(0, 7), c.message);
+                    }
+                }
             }
         }
     }
 
+    public static void find(String message) {
+        for(File n : COMMITS.listFiles()) {
+            if(!n.getName().equals("branches")) {
+                for(File f : n.listFiles()) {
+                    Commit c = readObject(f, Commit.class);
+                    if(c.message.equals(message)) {
+                        System.out.println(c.getSha());
+                    }
+                }
+            }
+        }
+    }
+
+    public static void status() {
+        System.out.println("=== Branches ===");
+        for(String s : Objects.requireNonNull(plainFilenamesIn(BRANCHES))) {
+            if(branch.equals(s)) {
+                System.out.print("*");
+            }
+            System.out.println(s);
+        }
+        System.out.println("\n=== Staged Files ===");
+        for(String s : Objects.requireNonNull(plainFilenamesIn(ADD))) {
+            System.out.println(s);
+        }
+        System.out.println("\n=== Removed Files ===");
+        for(String s : Objects.requireNonNull(plainFilenamesIn(REMOVE))) {
+            System.out.println(s);
+        }
+        System.out.println();
+    }
+
     public static void checkoutFile(String fileName) {
-        // TODO check if files can be serialized for storage
         File cur = join(CWD, fileName);
         Commit headCommit = getHead();
         if(!headCommit.map.containsKey(fileName)) {
@@ -146,11 +255,74 @@ public class Repository {
     }
 
     public static void checkoutCommit(String commit, String fileName) {
-
+        File cf = join(COMMITS, commit.substring(0, 2));
+        if(!cf.exists()) {
+            throw new RuntimeException("No commit with that ID exists");
+        }
+        File cwdFile = join(CWD, fileName);
+        if(!cwdFile.exists()) {
+            try {
+                cwdFile.createNewFile();
+            } catch (Exception e) {
+                throw new RuntimeException("Error creating file.");
+            }
+        }
+        Commit c = getCommit(commit);
+        if(!c.map.containsKey(fileName)) {
+            throw new RuntimeException("File does not exist in that commit.");
+        }
+        String blobName = c.map.get(fileName);
+        String blobContents = readObject(join(BLOBS, blobName), String.class);
+        writeContents(cwdFile, blobContents);
     }
 
-    public static void checkoutBranch(String branch) {
+    public static void checkoutBranch(String newBranch) {
+        if(!join(BRANCHES, newBranch).exists()) {
+            throw new IllegalArgumentException("No such branch exists.");
+        }
+        if(newBranch.equals(branch)) {
+            throw new IllegalArgumentException("No need to checkout the current branch.");
+        }
+        String branchHead = readContentsAsString(join(BRANCHES, newBranch));
+        Commit c = getCommit(branchHead);
+        for(File f : CWD.listFiles()) {
+            if(!c.map.containsKey(f.getName())) {
+                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                return;
+            }
+        }
+        for(File f : CWD.listFiles()) {
+           f.delete();
+        }
+        for(File f : ADD.listFiles()) {
+            f.delete();
+        }
+        for(String s : c.map.keySet()) {
+            File f = join(CWD, s);
+            if(!f.exists()) {
+                try {
+                    f.createNewFile();
+                } catch(Exception e) {
+                    System.out.println("Error creating file.");
+                }
+            }
+            String blobName = c.map.get(s);
+            String blobContents = readObject(join(BLOBS, blobName), String.class);
+            writeContents(f, blobContents);
+            branch = newBranch;
+        }
+    }
 
+    public static void branch(String name) {
+        File f = join(BRANCHES, name);
+        if(f.exists()) {
+            System.out.println("A branch with that name already exists.");
+            return;
+        }
+        try {
+            f.createNewFile();
+        } catch(Exception e) {}
+        writeContents(f, getHead().getSha());
     }
 
     public static void makeRepositories() {
@@ -178,7 +350,27 @@ public class Repository {
     public static Commit getHead() {
         File head = join(BRANCHES, branch);
         String headSha = readContentsAsString(head);
-        Commit c = readObject(join(COMMITS, headSha), Commit.class);
+        Commit c = readObject(join(COMMITS, headSha.substring(0, 2), headSha), Commit.class);
         return c;
     }
+
+    public static Commit getCommit(String sha) {
+        if(sha.length() < 40) {
+            File dir = join(COMMITS, sha.substring(0, 2));
+            if (dir.listFiles().length == 1) {
+                for (File f : dir.listFiles()) {
+                    return readObject(f, Commit.class);
+                }
+            } else {
+                for(File f : dir.listFiles()) {
+                    if(f.getName().startsWith(sha)) {
+                        return readObject(f, Commit.class);
+                    }
+                }
+                throw new RuntimeException("No commit with that ID.");
+            }
+        }
+        return readObject(join(COMMITS, sha.substring(0, 2), sha), Commit.class);
+    }
+
 }
