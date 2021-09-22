@@ -80,6 +80,9 @@ public class ArrayDeque<T> implements Iterable<T>, Deque<T> {
     // Removes first item in the array
     @Override
     public T removeFirst() {
+        if (size == 0) {
+            return null;
+        }
         T returnItem = items[Math.floorMod(nextFirst + 1, items.length)];
         nextFirst = Math.floorMod(nextFirst + 1, items.length);
         size--;
@@ -90,6 +93,9 @@ public class ArrayDeque<T> implements Iterable<T>, Deque<T> {
     // Removes last item in the array
     @Override
     public T removeLast() {
+        if (size == 0) {
+            return null;
+        }
         T returnItem = items[Math.floorMod(nextLast - 1, items.length)];
         nextLast = Math.floorMod(nextLast - 1, items.length);
         size--;
