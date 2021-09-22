@@ -95,6 +95,9 @@ public class LinkedListDeque<T> implements Iterable<T>, Deque<T> {
     /* Returns item at given index */
     @Override
     public T get(int index) {
+        if (index > size || index < 0) {
+            return null;
+        }
         int current = 0;
         Node p = sentinel.next;
         while (current < index) {
@@ -111,9 +114,9 @@ public class LinkedListDeque<T> implements Iterable<T>, Deque<T> {
     }
 
     private Node getRecursiveHelper(Node p, int index) {
-        if (index == 0){
+        if (index == 0) {
             return p;
-         } else {
+        } else {
             return getRecursiveHelper(p.next, index - 1);
         }
     }

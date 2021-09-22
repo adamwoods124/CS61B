@@ -105,7 +105,7 @@ public class ArrayDeque<T> implements Iterable<T>, Deque<T> {
     // Gets the item at the specified index
     @Override
     public T get(int index) {
-        if (index > size) {
+        if (index > size || index < 0) {
             return null;
         }
         return items[Math.floorMod(nextFirst + 1 + index, items.length)];
@@ -138,10 +138,10 @@ public class ArrayDeque<T> implements Iterable<T>, Deque<T> {
         if (this == other) {
             return true;
         }
-        if (!(other instanceof ArrayDeque)) {
+        if (!(other instanceof Deque)) {
             return false;
         }
-        ArrayDeque<T> otherList = (ArrayDeque<T>) other;
+        Deque<T> otherList = (Deque<T>) other;
         if (this.size() != otherList.size()) {
             return false;
         }
