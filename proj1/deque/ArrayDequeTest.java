@@ -1,6 +1,5 @@
 package deque;
 
-import org.checkerframework.checker.units.qual.A;
 import org.junit.Test;
 
 import java.lang.reflect.Array;
