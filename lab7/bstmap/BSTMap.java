@@ -6,7 +6,7 @@ import java.util.Set;
 
 import static org.junit.Assert.assertTrue;
 
-public class BSTMap<K extends Comparable, V> implements Map61B<K, V> {
+public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
 
     private Node<K, V> root;
     private int size;
@@ -15,12 +15,10 @@ public class BSTMap<K extends Comparable, V> implements Map61B<K, V> {
         root = null;
     }
 
-    public BSTMap(Node<K, V> n) {
-        root = n;
-    }
     public void clear() {
         if(root != null) {
-            root.clearHelper();
+            root = null;
+            size = 0;
         }
     }
 
@@ -56,11 +54,11 @@ public class BSTMap<K extends Comparable, V> implements Map61B<K, V> {
         size++;
     }
 
-    public void print() {
+    public void printInOrder() {
         root.printInorder(root);
     }
 
-    public Set keySet() {
+    public Set<K> keySet() {
         throw new UnsupportedOperationException("No KeySet method available for this class.");
     }
 
@@ -72,7 +70,7 @@ public class BSTMap<K extends Comparable, V> implements Map61B<K, V> {
         throw new UnsupportedOperationException("No remove method available for this class");
     }
 
-    public Iterator iterator() {
+    public Iterator<K> iterator() {
         throw new UnsupportedOperationException("No iterator available for this class.");
     }
 
@@ -149,9 +147,9 @@ public class BSTMap<K extends Comparable, V> implements Map61B<K, V> {
             return value;
         }
 
-        public void clearHelper() {
-            value = null;
-            key = null;
+        private void clearHelper() {
+            this.value = null;
+            this.key = null;
             if(right != null) {
                 right.clearHelper();
             }
@@ -159,6 +157,7 @@ public class BSTMap<K extends Comparable, V> implements Map61B<K, V> {
                 left.clearHelper();
             }
         }
+
 
         public void printInorder(Node n) {
             if(n == null) {
@@ -168,16 +167,5 @@ public class BSTMap<K extends Comparable, V> implements Map61B<K, V> {
             System.out.println(n.value);
             printInorder(n.right);
         }
-    }
-
-    public static void main(String[] args) {
-        BSTMap<String, Integer> b = new BSTMap<String, Integer>();
-        for (int i = 0; i < 455; i++) {
-            b.put("hi" + i, 1+i);
-            //make sure put is working via containsKey and get
-
-        }
-
-        b.print();
     }
 }
