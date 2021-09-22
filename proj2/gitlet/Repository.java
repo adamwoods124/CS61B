@@ -166,15 +166,16 @@ public class Repository {
         if(f.exists()) {
             f.delete();
         }
-        File m = join(REMOVE, fileName);
-        try {
-            m.createNewFile();
-        } catch (Exception e) {}
-        writeContents(m, readContentsAsString(join(CWD, fileName)));
+
+
         if(c.map.containsKey(fileName)) {
             join(CWD, fileName).delete();
+            File m = join(REMOVE, fileName);
+            try {
+                m.createNewFile();
+            } catch (Exception e) {}
+            writeContents(m, readContentsAsString(join(CWD, fileName)));
         }
-
     }
 
     public static void log() {
@@ -199,7 +200,7 @@ public class Repository {
             if(!n.getName().equals("branches")) {
                 for(File f : n.listFiles()) {
                     Commit c = readObject(f, Commit.class);
-                    if(c.parents.size() == 1) {
+                    if(c.parents == null || c.parents.size() == 1) {
                         System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", c.getSha(), c.getDate(), c.message);
                     } else {
                         System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n", c.getSha(), c.getDate(), c.parents.get(0).substring(0, 7), c.parents.get(1).substring(0, 7), c.message);
@@ -238,7 +239,8 @@ public class Repository {
         for(String s : Objects.requireNonNull(plainFilenamesIn(REMOVE))) {
             System.out.println(s);
         }
-        System.out.println();
+        System.out.println("\n=== Modifications Not Staged For Commit ===");
+        System.out.println("\n=== Untracked Files ===");
     }
 
     public static void checkoutFile(String fileName) {
