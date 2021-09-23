@@ -28,8 +28,7 @@ public class Repository {
     private static File STAGE = join(GITLET_DIR, "stage");
     private static File ADD = join(STAGE, "add");
     private static File REMOVE = join(STAGE, "rm");
-    private static String branch = "master";
-
+    private static File BRANCH = join(GITLET_DIR, "branch");
     /**
      * Create initial file structure
      * .gitlet
@@ -50,7 +49,13 @@ public class Repository {
         }
         makeRepositories();
 
-
+        // Create branch file
+        try {
+            BRANCH.createNewFile();
+        } catch (IOException e) {
+            System.out.println("Error creating branch file.");
+        }
+        writeContents(BRANCH, "master");
          // Create initial commit and serialize it for storage
         Commit initialCommit = new Commit();
         byte[] serializedInitialCommit = serialize(initialCommit);
@@ -135,7 +140,7 @@ public class Repository {
             return;
         }
         // Get sha of the current head commit, and create a new commit that is a clone of it
-        File head = join(BRANCHES, branch);
+        File head = join(BRANCHES, readContentsAsString(BRANCH));
         String headSha = readContentsAsString(head);
         Commit c = new Commit(message, headSha);
 
@@ -187,7 +192,7 @@ public class Repository {
 
     public static void log() {
         Commit c = getHead();
-        String sha = readContentsAsString(join(BRANCHES, branch));
+        String sha = readContentsAsString(join(BRANCHES, readContentsAsString(BRANCH)));
         while(c.getParents() != null) {
             if (c.getParents().size() == 1) {
                 System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", sha, c.getDate(), c.getMessage());
@@ -231,7 +236,7 @@ public class Repository {
     public static void status() {
         System.out.println("=== Branches ===");
         for(String s : Objects.requireNonNull(plainFilenamesIn(BRANCHES))) {
-            if(branch.equals(s)) {
+            if(readContentsAsString(BRANCH).equals(s)) {
                 System.out.print("*");
             }
             System.out.println(s);
@@ -245,7 +250,7 @@ public class Repository {
             System.out.println(s);
         }
         System.out.println("\n=== Modifications Not Staged For Commit ===");
-        System.out.println("\n=== Untracked Files ===");
+        System.out.println("\n=== Untracked Files ===\n");
     }
 
     public static void checkoutFile(String fileName) {
@@ -264,7 +269,8 @@ public class Repository {
     public static void checkoutCommit(String commit, String fileName) {
         File cf = join(COMMITS, commit.substring(0, 2));
         if(!cf.exists()) {
-            throw new RuntimeException("No commit with that ID exists");
+            System.out.println("No commit with that ID exists");
+            return;
         }
         File cwdFile = join(CWD, fileName);
         if(!cwdFile.exists()) {
@@ -276,7 +282,8 @@ public class Repository {
         }
         Commit c = getCommit(commit);
         if(!c.getMap().containsKey(fileName)) {
-            throw new RuntimeException("File does not exist in that commit.");
+            System.out.println("File does not exist in that commit.");
+            return;
         }
         String blobName = c.getMap().get(fileName);
         String blobContents = readObject(join(BLOBS, blobName), String.class);
@@ -285,26 +292,34 @@ public class Repository {
 
     public static void checkoutBranch(String newBranch) {
         if(!join(BRANCHES, newBranch).exists()) {
-            throw new IllegalArgumentException("No such branch exists.");
+            System.out.println("No such branch exists.");
+            return;
         }
-        if(newBranch.equals(branch)) {
-            throw new IllegalArgumentException("No need to checkout the current branch.");
+        if(newBranch.equals(readContentsAsString(BRANCH))) {
+            System.out.println("No need to checkout the current branch.");
+            return;
         }
-        String branchHead = readContentsAsString(join(BRANCHES, newBranch));
-        Commit c = getCommit(branchHead);
-        for(File f : CWD.listFiles()) {
-            if(!c.getMap().containsKey(f.getName())) {
+        Commit c = getHead();
+        for(String f : Objects.requireNonNull(CWD.list())) {
+            if(f.equals(".gitlet")) {
+                continue;
+            }
+            if(!c.getMap().containsKey(f)) {
                 System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
                 return;
             }
         }
-        for(File f : CWD.listFiles()) {
-           f.delete();
+        for(File f : Objects.requireNonNull(CWD.listFiles())) {
+            if(!f.equals(".gitlet")) {
+                f.delete();
+            }
         }
-        for(File f : ADD.listFiles()) {
+        for(File f : Objects.requireNonNull(ADD.listFiles())) {
             f.delete();
         }
-        for(String s : c.getMap().keySet()) {
+        writeContents(BRANCH, newBranch);
+        Commit c2 = getHead();
+        for(String s : c2.getMap().keySet()) {
             File f = join(CWD, s);
             if(!f.exists()) {
                 try {
@@ -313,10 +328,9 @@ public class Repository {
                     System.out.println("Error creating file.");
                 }
             }
-            String blobName = c.getMap().get(s);
+            String blobName = c2.getMap().get(s);
             String blobContents = readObject(join(BLOBS, blobName), String.class);
             writeContents(f, blobContents);
-            branch = newBranch;
         }
     }
 
@@ -328,7 +342,7 @@ public class Repository {
         }
         try {
             f.createNewFile();
-        } catch (Exception e) {}
+        } catch (Exception ignored){}
         writeContents(f, getHead().getSha());
     }
 
@@ -338,7 +352,7 @@ public class Repository {
             System.out.println("A branch with that name does not exist.");
             return;
         }
-        if (name.equals(branch)) {
+        if (name.equals(readContentsAsString(BRANCH))) {
             System.out.println("Cannot remove the current branch.");
             return;
         }
@@ -368,7 +382,7 @@ public class Repository {
     }
 
     public static Commit getHead() {
-        File head = join(BRANCHES, branch);
+        File head = join(BRANCHES, readContentsAsString(BRANCH));
         String headSha = readContentsAsString(head);
         Commit c = readObject(join(COMMITS, headSha.substring(0, 2), headSha), Commit.class);
         return c;
