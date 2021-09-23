@@ -155,7 +155,7 @@ public class Repository {
         File f = join(shortDir, newHead);
         try {
             f.createNewFile();
-        } catch(IOException e) {
+        } catch (IOException e) {
             System.out.println("Error creating file.");
         }
         // Save commit persistently
@@ -225,8 +225,8 @@ public class Repository {
                         System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n",
                                 c.getSha(), c.getDate(), c.getMessage());
                     } else {
-                        System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n",
-                                c.getSha(), c.getDate(), c.getParents().get(0).substring(0, 7),
+                        System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n"
+                               , c.getSha(), c.getDate(), c.getParents().get(0).substring(0, 7),
                                 c.getParents().get(1).substring(0, 7), c.getMessage());
                     }
                 }
@@ -299,7 +299,7 @@ public class Repository {
                 throw new RuntimeException("Error creating file.");
             }
         }
-        if(getCommit(commit) == null) {
+        if (getCommit(commit) == null) {
             System.out.println("No commit with that id exists.");
             return;
         }
@@ -330,7 +330,7 @@ public class Repository {
             if (!f.exists()) {
                 try {
                     f.createNewFile();
-                } catch(IOException e) {
+                } catch (IOException e) {
                     System.out.println("Error creating file.");
                 }
             }
@@ -378,7 +378,7 @@ public class Repository {
             if (!f.exists()) {
                 try {
                     f.createNewFile();
-                } catch(IOException e) {
+                } catch (IOException e) {
                     System.out.println("Error creating file.");
                 }
             }
@@ -415,8 +415,8 @@ public class Repository {
 
     public static void makeRepositories() {
         if (GITLET_DIR.exists()) {
-            System.out.println("A Gitlet version-control system already exists " +
-                    "in the current directory.");
+            System.out.println("A Gitlet version-control system already exists "
+                   + "in the current directory.");
             return;
         }
         GITLET_DIR.mkdir();
