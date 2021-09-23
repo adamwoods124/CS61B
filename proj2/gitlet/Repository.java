@@ -225,8 +225,9 @@ public class Repository {
                         System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n",
                                 c.getSha(), c.getDate(), c.getMessage());
                     } else {
-                        System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n"
-                               , c.getSha(), c.getDate(), c.getParents().get(0).substring(0, 7),
+                        System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\n" +
+                                        "Date: %4$s\n%5$s\n\n",
+                                c.getSha(), c.getDate(), c.getParents().get(0).substring(0, 7),
                                 c.getParents().get(1).substring(0, 7), c.getMessage());
                     }
                 }
