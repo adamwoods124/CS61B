@@ -1,30 +1,26 @@
 package gitlet;
 
-// TODO: any imports you need here
-
 import java.io.File;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
-import java.util.Date; // TODO: You'll likely use this in this class
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.TreeMap;
 import static gitlet.Utils.*;
 
 /** Represents a gitlet commit object.
- *  TODO: It's a good idea to give a description here of what else this Class
- *  does at a high level.
- *
- *  @author TODO
+ *  contains message, date, parents, and a map to all blobs tracked by the commit
+ *  @author Adam Woods
  */
 public class Commit implements Serializable {
     /** The message of this Commit. */
-    public String message;
+    private String message;
     /** Timestamp */
-    public Date date;
+    private Date date;
     /** Parent of the commit */
-    public LinkedList<String> parents;
+    private LinkedList<String> parents;
     //public static String parent;
-    public TreeMap<String, String> map;
+    private TreeMap<String, String> map;
 
     public Commit() {
         this.message = "initial commit";
@@ -38,8 +34,9 @@ public class Commit implements Serializable {
         this.date = new Date();
         this.parents = new LinkedList<>();
         this.parents.add(parent);
-        File f = Utils.join(System.getProperty("user.dir"), ".gitlet", "commits", parent.substring(0, 2), parent);
-        Commit c = Utils.readObject(f, Commit.class);
+        File commitsFolder = join(System.getProperty("user.dir"), ".gitlet", "commits");
+        File thisFolder = join(commitsFolder, parent.substring(0, 2), parent);
+        Commit c = Utils.readObject(thisFolder, Commit.class);
         this.map = c.map;
         File stage = Utils.join(System.getProperty("user.dir"), ".gitlet", "stage", "add");
         for(File s : stage.listFiles()) {
@@ -50,6 +47,18 @@ public class Commit implements Serializable {
     public String getDate() {
         SimpleDateFormat df = new SimpleDateFormat("E MMM d hh:mm:ss y Z");
         return df.format(date);
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public LinkedList<String> getParents() {
+        return parents;
+    }
+
+    public TreeMap<String, String> getMap() {
+        return map;
     }
 
     public String getSha() {

@@ -5,7 +5,7 @@ import java.io.File;
 
 
 /** Driver class for Gitlet, a subset of the Git version-control system.
- *  @author TODO
+ *  @author Adam Woods
  */
 public class Main {
 
@@ -27,7 +27,7 @@ public class Main {
                 Repository.add(args[1]);
                 break;
             case "commit":
-                if(args.length == 1) {
+                if(args.length == 1 || args[1].equals("")) {
                     System.out.println("Please enter a commit message.");
                     break;
                 }
@@ -61,6 +61,9 @@ public class Main {
                 checkArgs(args, 2);
                 Repository.branch(args[1]);
                 break;
+            case "rm-branch":
+                checkArgs(args, 2);
+                Repository.removeBranch(args[1]);
             default:
                 System.out.println("No command with that name.");
                 System.out.println("Command: " + args);

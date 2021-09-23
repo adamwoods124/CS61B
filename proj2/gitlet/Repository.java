@@ -1,17 +1,15 @@
 package gitlet;
 
 import java.io.File;
-import java.nio.file.Files;
-import java.util.List;
+import java.io.IOException;
 import java.util.Objects;
 
 
 import static gitlet.Utils.*;
 
-// TODO: any imports you need here
-
 /** Represents a gitlet repository.
- *  Establishes overall skeleton of the system, creating the file and directories where items are stored
+ *  Establishes overall skeleton of the system, creating the files
+ *  and directories where items are stored
  *  Uses helper methods from other classes to be the main driver of the system
  *
  *  @author Adam Woods
@@ -22,16 +20,15 @@ public class Repository {
     public static final File CWD = new File(System.getProperty("user.dir"));
     /** The .gitlet directory. */
     public static final File GITLET_DIR = join(CWD, ".gitlet");
-    public static File COMMITS = join(GITLET_DIR, "commits");
-    public static File BRANCHES = join(COMMITS, "branches");
-    public static File MASTER = join(BRANCHES, "master");
-    public static File BLOBS = join(GITLET_DIR, "blobs");
-    public static File STAGE = join(GITLET_DIR, "stage");
-    public static File ADD = join(STAGE, "add");
-    public static File REMOVE = join(STAGE, "rm");
-    public static String branch = "master";
-
-    /* TODO: fill in the rest of this class. */
+    /** Create initial file structure */
+    private static File COMMITS = join(GITLET_DIR, "commits");
+    private static File BRANCHES = join(COMMITS, "branches");
+    private static File MASTER = join(BRANCHES, "master");
+    private static File BLOBS = join(GITLET_DIR, "blobs");
+    private static File STAGE = join(GITLET_DIR, "stage");
+    private static File ADD = join(STAGE, "add");
+    private static File REMOVE = join(STAGE, "rm");
+    private static String branch = "master";
 
     /**
      * Create initial file structure
@@ -46,8 +43,9 @@ public class Repository {
      *          rm
      */
     public static void init() {
-        if(GITLET_DIR.exists()) {
-            System.out.println("A Gitlet version-control system already exists in the current directory.");
+        if (GITLET_DIR.exists()) {
+            System.out.println("A Gitlet version-control system already exists " +
+                    "in the current directory.");
             return;
         }
         makeRepositories();
@@ -63,38 +61,48 @@ public class Repository {
         File commitFile = join(commitDir, sha1(serializedInitialCommit));
         try {
             commitFile.createNewFile();
-        } catch(Exception e) {
+        } catch (IOException e) {
             System.out.println("Error creating commit file.");
         }
         // Saving the commit persistently
         writeObject(commitFile, initialCommit);
         try {
             MASTER.createNewFile();
-        } catch(Exception e) {}
+        } catch (IOException e) {
+            System.out.println("Error creating master file.");
+        }
         writeContents(MASTER, sha1(serializedInitialCommit));
     }
 
     /**
-     * Adds given file to staging area, and creates a blob that saves its contents if one does not already exist.
+     * Adds given file to staging area, and creates a blob
+     * that saves its contents if one does not already exist.
      * If file with given name already exists in the staging area, it is overwritten
      * @param name gives the name of the file to be added to staging area.
      */
     public static void add(String name) {
         // Saves file that will be added and errors if it does not exist
         File cwdFile = join(CWD, name);
-        if(!cwdFile.exists()) {
+        if (!cwdFile.exists()) {
             System.out.println("File does not exist.");
             return;
         }
-        // Sha the contents of the file to be added, and return if it is already saved in the current head commit
+
+        // Clear file from staging area if it was staged for removal
+        File checkStaging = join(REMOVE, name);
+        if(checkStaging.exists()) {
+            checkStaging.delete();
+        }
+        /** Sha the contents of the file to be added
+         * return if it is already saved in the current head commit
+         */
         String sha = sha1(readContents(cwdFile));
-        if(alreadyCommitted(name, sha)) {
+        if (alreadyCommitted(name, sha)) {
             return;
         }
-
         // Create file in the add directory if it needs to be added to staging area
         File addFile = join(ADD, name);
-        if(!addFile.exists()) {
+        if (!addFile.exists()) {
             try {
                 addFile.createNewFile();
             } catch (Exception e){
@@ -107,7 +115,7 @@ public class Repository {
 
         // Get blob contents and write them to file in the add directory
         File blob = join(BLOBS, sha);
-        if(blob.exists()) {
+        if (blob.exists()) {
             return;
         }
         try {
@@ -122,7 +130,7 @@ public class Repository {
 
     public static void commit(String message) {
         // Stop if staging area is empty
-        if(ADD.listFiles().length == 0 && REMOVE.listFiles().length == 0) {
+        if (ADD.listFiles().length == 0 && REMOVE.listFiles().length == 0) {
             System.out.println("No changes added to the commit.");
             return;
         }
@@ -151,7 +159,7 @@ public class Repository {
         }
 
         for(File z : REMOVE.listFiles()) {
-            c.map.remove(z.getName());
+            c.getMap().remove(z.getName());
             z.delete();
         }
     }
@@ -159,7 +167,7 @@ public class Repository {
     public static void remove(String fileName) {
         File f = join(ADD, fileName);
         Commit c = getHead();
-        if(!f.exists() && !c.map.containsKey(fileName)) {
+        if(!f.exists() && !c.getMap().containsKey(fileName)) {
             System.out.println("No reason to remove the file.");
             return;
         }
@@ -167,32 +175,29 @@ public class Repository {
             f.delete();
         }
 
-
-        if(c.map.containsKey(fileName)) {
-            join(CWD, fileName).delete();
+        if(c.getMap().containsKey(fileName)) {
             File m = join(REMOVE, fileName);
             try {
                 m.createNewFile();
             } catch (Exception e) {}
             writeContents(m, readContentsAsString(join(CWD, fileName)));
+            join(CWD, fileName).delete();
         }
     }
 
     public static void log() {
         Commit c = getHead();
         String sha = readContentsAsString(join(BRANCHES, branch));
-        while(c.parents != null) {
-            if(c.parents.size() == 1) {
-                System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", sha, c.getDate(), c.message);
-                c = getCommit(c.parents.get(0));
-                sha = c.getSha();
+        while(c.getParents() != null) {
+            if (c.getParents().size() == 1) {
+                System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", sha, c.getDate(), c.getMessage());
             } else {
-                System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n", sha, c.getDate(), c.parents.get(0).substring(0, 7), c.parents.get(1).substring(0, 7), c.message);
-                c = getCommit(c.parents.get(0));
-                sha = c.getSha();
+                System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n", sha, c.getDate(), c.getParents().get(0).substring(0, 7), c.getParents().get(1).substring(0, 7), c.getMessage());
             }
+            c = getCommit(c.getParents().get(0));
+            sha = c.getSha();
         }
-        System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", sha, c.getDate(), c.message);
+        System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", sha, c.getDate(), c.getMessage());
     }
 
     public static void globalLog() {
@@ -200,10 +205,10 @@ public class Repository {
             if(!n.getName().equals("branches")) {
                 for(File f : n.listFiles()) {
                     Commit c = readObject(f, Commit.class);
-                    if(c.parents == null || c.parents.size() == 1) {
-                        System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", c.getSha(), c.getDate(), c.message);
+                    if(c.getParents() == null || c.getParents().size() == 1) {
+                        System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", c.getSha(), c.getDate(), c.getMessage());
                     } else {
-                        System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n", c.getSha(), c.getDate(), c.parents.get(0).substring(0, 7), c.parents.get(1).substring(0, 7), c.message);
+                        System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n", c.getSha(), c.getDate(), c.getParents().get(0).substring(0, 7), c.getParents().get(1).substring(0, 7), c.getMessage());
                     }
                 }
             }
@@ -215,7 +220,7 @@ public class Repository {
             if(!n.getName().equals("branches")) {
                 for(File f : n.listFiles()) {
                     Commit c = readObject(f, Commit.class);
-                    if(c.message.equals(message)) {
+                    if(c.getMessage().equals(message)) {
                         System.out.println(c.getSha());
                     }
                 }
@@ -246,11 +251,11 @@ public class Repository {
     public static void checkoutFile(String fileName) {
         File cur = join(CWD, fileName);
         Commit headCommit = getHead();
-        if(!headCommit.map.containsKey(fileName)) {
+        if(!headCommit.getMap().containsKey(fileName)) {
             System.out.println("File does not exist in that commit.");
             return;
         }
-        String blobName = headCommit.map.get(fileName);
+        String blobName = headCommit.getMap().get(fileName);
         //byte[] blobContents = readContents(join(BLOBS, blobName));
         String blobContents = readObject(join(BLOBS, blobName), String.class);
         writeContents(cur, blobContents);
@@ -270,10 +275,10 @@ public class Repository {
             }
         }
         Commit c = getCommit(commit);
-        if(!c.map.containsKey(fileName)) {
+        if(!c.getMap().containsKey(fileName)) {
             throw new RuntimeException("File does not exist in that commit.");
         }
-        String blobName = c.map.get(fileName);
+        String blobName = c.getMap().get(fileName);
         String blobContents = readObject(join(BLOBS, blobName), String.class);
         writeContents(cwdFile, blobContents);
     }
@@ -288,7 +293,7 @@ public class Repository {
         String branchHead = readContentsAsString(join(BRANCHES, newBranch));
         Commit c = getCommit(branchHead);
         for(File f : CWD.listFiles()) {
-            if(!c.map.containsKey(f.getName())) {
+            if(!c.getMap().containsKey(f.getName())) {
                 System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
                 return;
             }
@@ -299,7 +304,7 @@ public class Repository {
         for(File f : ADD.listFiles()) {
             f.delete();
         }
-        for(String s : c.map.keySet()) {
+        for(String s : c.getMap().keySet()) {
             File f = join(CWD, s);
             if(!f.exists()) {
                 try {
@@ -308,7 +313,7 @@ public class Repository {
                     System.out.println("Error creating file.");
                 }
             }
-            String blobName = c.map.get(s);
+            String blobName = c.getMap().get(s);
             String blobContents = readObject(join(BLOBS, blobName), String.class);
             writeContents(f, blobContents);
             branch = newBranch;
@@ -317,14 +322,27 @@ public class Repository {
 
     public static void branch(String name) {
         File f = join(BRANCHES, name);
-        if(f.exists()) {
+        if (f.exists()) {
             System.out.println("A branch with that name already exists.");
             return;
         }
         try {
             f.createNewFile();
-        } catch(Exception e) {}
+        } catch (Exception e) {}
         writeContents(f, getHead().getSha());
+    }
+
+    public static void removeBranch(String name) {
+        File f = join(BRANCHES, name);
+        if (!f.exists()) {
+            System.out.println("A branch with that name does not exist.");
+            return;
+        }
+        if (name.equals(branch)) {
+            System.out.println("Cannot remove the current branch.");
+            return;
+        }
+        f.delete();
     }
 
     public static void makeRepositories() {
@@ -343,7 +361,7 @@ public class Repository {
 
     public static boolean alreadyCommitted(String name, String sha) {
         Commit c = getHead();
-        if(c.map.containsKey(name) && c.map.get(name).equals(sha)) {
+        if(c.getMap().containsKey(name) && c.getMap().get(name).equals(sha)) {
             return true;
         }
         return false;
