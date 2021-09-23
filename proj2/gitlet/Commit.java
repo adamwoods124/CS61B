@@ -39,7 +39,7 @@ public class Commit implements Serializable {
         Commit c = Utils.readObject(thisFolder, Commit.class);
         this.map = c.map;
         File stage = Utils.join(System.getProperty("user.dir"), ".gitlet", "stage", "add");
-        for(File s : stage.listFiles()) {
+        for (File s : stage.listFiles()) {
             this.map.put(s.getName(), readContentsAsString(s));
         }
     }

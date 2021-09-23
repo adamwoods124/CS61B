@@ -43,8 +43,8 @@ public class Repository {
      */
     public static void init() {
         if (GITLET_DIR.exists()) {
-            System.out.println("A Gitlet version-control system already exists " +
-                    "in the current directory.");
+            System.out.println("A Gitlet version-control system already exists "
+                   + "in the current directory.");
             return;
         }
         makeRepositories();
@@ -95,7 +95,7 @@ public class Repository {
 
         // Clear file from staging area if it was staged for removal
         File checkStaging = join(REMOVE, name);
-        if(checkStaging.exists()) {
+        if (checkStaging.exists()) {
             checkStaging.delete();
         }
         /** Sha the contents of the file to be added
@@ -110,12 +110,14 @@ public class Repository {
         if (!addFile.exists()) {
             try {
                 addFile.createNewFile();
-            } catch (Exception e){
+            } catch (IOException e) {
                 System.out.println("Cannot create file.");
             }
         }
 
-        // Write the sha of contents (pointer to the blob where contents are saved) to the file in the add directory
+        /** Write the sha of contents (pointer to the blob where contents are saved)
+         * to the file in the add directory
+         */
         writeContents(addFile, sha);
 
         // Get blob contents and write them to file in the add directory
@@ -125,7 +127,7 @@ public class Repository {
         }
         try {
             blob.createNewFile();
-        } catch (Exception e) {
+        } catch (IOException e) {
             System.out.println("Error creating blob file.");
         }
         //byte[] b = readContents(cwdFile);
@@ -147,23 +149,25 @@ public class Repository {
         // Change head pointer to new commit
         String newHead = sha1(serialize(c));
         File shortDir = join(COMMITS, newHead.substring(0, 2));
-        if(!shortDir.exists()) {
+        if (!shortDir.exists()) {
             shortDir.mkdir();
         }
         File f = join(shortDir, newHead);
         try {
             f.createNewFile();
-        } catch(Exception e) {}
+        } catch(IOException e) {
+            System.out.println("Error creating file.");
+        }
         // Save commit persistently
         writeObject(f, c);
         writeContents(head, newHead);
 
         // Clear staging area
-        for(File z : ADD.listFiles()) {
+        for (File z : ADD.listFiles()) {
             z.delete();
         }
 
-        for(File z : REMOVE.listFiles()) {
+        for (File z : REMOVE.listFiles()) {
             c.getMap().remove(z.getName());
             z.delete();
         }
@@ -172,21 +176,23 @@ public class Repository {
     public static void remove(String fileName) {
         File f = join(ADD, fileName);
         Commit c = getHead();
-        if(!f.exists() && !c.getMap().containsKey(fileName)) {
+        if (!f.exists() && !c.getMap().containsKey(fileName)) {
             System.out.println("No reason to remove the file.");
             return;
         }
-        if(f.exists()) {
+        if (f.exists()) {
             f.delete();
         }
-        if(c.getMap().containsKey(fileName)) {
+        if (c.getMap().containsKey(fileName)) {
             File m = join(REMOVE, fileName);
-            if(m.isDirectory()) {
+            if (m.isDirectory()) {
                 return;
             }
             try {
                 m.createNewFile();
-            } catch (Exception e) {}
+            } catch (IOException e) {
+                System.out.println("Error creating file.");
+            }
             join(CWD, fileName).delete();
         }
     }
@@ -194,27 +200,34 @@ public class Repository {
     public static void log() {
         Commit c = getHead();
         String sha = readContentsAsString(join(BRANCHES, readContentsAsString(BRANCH)));
-        while(c.getParents() != null) {
+        while (c.getParents() != null) {
             if (c.getParents().size() == 1) {
-                System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", sha, c.getDate(), c.getMessage());
+                System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", sha,
+                        c.getDate(), c.getMessage());
             } else {
-                System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n", sha, c.getDate(), c.getParents().get(0).substring(0, 7), c.getParents().get(1).substring(0, 7), c.getMessage());
+                System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n",
+                        sha, c.getDate(), c.getParents().get(0).substring(0, 7),
+                        c.getParents().get(1).substring(0, 7), c.getMessage());
             }
             c = getCommit(c.getParents().get(0));
             sha = c.getSha();
         }
-        System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", sha, c.getDate(), c.getMessage());
+        System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n",
+                sha, c.getDate(), c.getMessage());
     }
 
     public static void globalLog() {
-        for(File n : COMMITS.listFiles()) {
-            if(!n.getName().equals("branches")) {
-                for(File f : n.listFiles()) {
+        for (File n : COMMITS.listFiles()) {
+            if (!n.getName().equals("branches")) {
+                for (File f : n.listFiles()) {
                     Commit c = readObject(f, Commit.class);
-                    if(c.getParents() == null || c.getParents().size() == 1) {
-                        System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", c.getSha(), c.getDate(), c.getMessage());
+                    if (c.getParents() == null || c.getParents().size() == 1) {
+                        System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n",
+                                c.getSha(), c.getDate(), c.getMessage());
                     } else {
-                        System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n", c.getSha(), c.getDate(), c.getParents().get(0).substring(0, 7), c.getParents().get(1).substring(0, 7), c.getMessage());
+                        System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\nDate: %4$s\n%5$s\n\n",
+                                c.getSha(), c.getDate(), c.getParents().get(0).substring(0, 7),
+                                c.getParents().get(1).substring(0, 7), c.getMessage());
                     }
                 }
             }
@@ -222,33 +235,37 @@ public class Repository {
     }
 
     public static void find(String message) {
-        for(File n : COMMITS.listFiles()) {
-            if(!n.getName().equals("branches")) {
-                for(File f : n.listFiles()) {
+        boolean found = false;
+        for (File n : COMMITS.listFiles()) {
+            if (!n.getName().equals("branches")) {
+                for (File f : n.listFiles()) {
                     Commit c = readObject(f, Commit.class);
-                    if(c.getMessage().equals(message)) {
+                    if (c.getMessage().equals(message)) {
                         System.out.println(c.getSha());
+                        found = true;
                     }
                 }
             }
         }
-        System.out.println("Found no commit with that message.");
+        if (!found) {
+            System.out.println("Found no commit with that message.");
+        }
     }
 
     public static void status() {
         System.out.println("=== Branches ===");
-        for(String s : Objects.requireNonNull(plainFilenamesIn(BRANCHES))) {
-            if(readContentsAsString(BRANCH).equals(s)) {
+        for (String s : Objects.requireNonNull(plainFilenamesIn(BRANCHES))) {
+            if (readContentsAsString(BRANCH).equals(s)) {
                 System.out.print("*");
             }
             System.out.println(s);
         }
         System.out.println("\n=== Staged Files ===");
-        for(String s : Objects.requireNonNull(plainFilenamesIn(ADD))) {
+        for (String s : Objects.requireNonNull(plainFilenamesIn(ADD))) {
             System.out.println(s);
         }
         System.out.println("\n=== Removed Files ===");
-        for(String s : Objects.requireNonNull(plainFilenamesIn(REMOVE))) {
+        for (String s : Objects.requireNonNull(plainFilenamesIn(REMOVE))) {
             System.out.println(s);
         }
         System.out.println("\n=== Modifications Not Staged For Commit ===");
@@ -258,7 +275,7 @@ public class Repository {
     public static void checkoutFile(String fileName) {
         File cur = join(CWD, fileName);
         Commit headCommit = getHead();
-        if(!headCommit.getMap().containsKey(fileName)) {
+        if (!headCommit.getMap().containsKey(fileName)) {
             System.out.println("File does not exist in that commit.");
             return;
         }
@@ -270,15 +287,15 @@ public class Repository {
 
     public static void checkoutCommit(String commit, String fileName) {
         File cf = join(COMMITS, commit.substring(0, 2));
-        if(!cf.exists()) {
+        if (!cf.exists()) {
             System.out.println("No commit with that ID exists.");
             return;
         }
         File cwdFile = join(CWD, fileName);
-        if(!cwdFile.exists()) {
+        if (!cwdFile.exists()) {
             try {
                 cwdFile.createNewFile();
-            } catch (Exception e) {
+            } catch (IOException e) {
                 throw new RuntimeException("Error creating file.");
             }
         }
@@ -287,7 +304,7 @@ public class Repository {
             return;
         }
         Commit c = getCommit(commit);
-        if(!c.getMap().containsKey(fileName)) {
+        if (!c.getMap().containsKey(fileName)) {
             System.out.println("File does not exist in that commit.");
             return;
         }
@@ -297,23 +314,23 @@ public class Repository {
     }
 
     public static void checkoutBranch(String newBranch) {
-        if(!join(BRANCHES, newBranch).exists()) {
+        if (!join(BRANCHES, newBranch).exists()) {
             System.out.println("No such branch exists.");
             return;
         }
-        if(newBranch.equals(readContentsAsString(BRANCH))) {
+        if (newBranch.equals(readContentsAsString(BRANCH))) {
             System.out.println("No need to checkout the current branch.");
             return;
         }
         clear();
         writeContents(BRANCH, newBranch);
         Commit c2 = getHead();
-        for(String s : c2.getMap().keySet()) {
+        for (String s : c2.getMap().keySet()) {
             File f = join(CWD, s);
-            if(!f.exists()) {
+            if (!f.exists()) {
                 try {
                     f.createNewFile();
-                } catch(Exception e) {
+                } catch(IOException e) {
                     System.out.println("Error creating file.");
                 }
             }
@@ -331,7 +348,9 @@ public class Repository {
         }
         try {
             f.createNewFile();
-        } catch (Exception ignored){}
+        } catch (IOException e) {
+            System.out.println("Error creating file.");
+        }
         writeContents(f, getHead().getSha());
     }
 
@@ -348,7 +367,7 @@ public class Repository {
         f.delete();
     }
     public static void reset(String commit) {
-        if(getCommit(commit) == null) {
+        if (getCommit(commit) == null) {
             System.out.println("No commit with that id exists.");
             return;
         }
@@ -356,10 +375,10 @@ public class Repository {
         clear();
         for (String s : c.getMap().keySet())  {
             File f = join(CWD, s);
-            if(!f.exists()) {
+            if (!f.exists()) {
                 try {
                     f.createNewFile();
-                } catch(Exception e) {
+                } catch(IOException e) {
                     System.out.println("Error creating file.");
                 }
             }
@@ -367,21 +386,22 @@ public class Repository {
             String blobContents = readObject(join(BLOBS, blobName), String.class);
             writeContents(f, blobContents);
         }
+        writeContents(join(BRANCHES, readContentsAsString(BRANCH)), c.getSha());
     }
 
     public static void clear() {
-        Commit c = getHead();
-        for(String f : Objects.requireNonNull(CWD.list())) {
-            if(f.equals(".gitlet")) {
+        for (String f : Objects.requireNonNull(CWD.list())) {
+            if (f.equals(".gitlet")) {
                 continue;
             }
-            if(!c.getMap().containsKey(f)) {
-                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+            if (!trackedInBranch(f)) {
+                System.out.println("There is an untracked file in the way;"
+                       + " delete it, or add and commit it first.");
                 return;
             }
         }
         for (File f : Objects.requireNonNull(CWD.listFiles())) {
-            if(!f.equals(".gitlet")) {
+            if (!f.equals(".gitlet")) {
                 f.delete();
             }
         }
@@ -394,8 +414,9 @@ public class Repository {
     }
 
     public static void makeRepositories() {
-        if(GITLET_DIR.exists()) {
-            System.out.println("A Gitlet version-control system already exists in the current directory.");
+        if (GITLET_DIR.exists()) {
+            System.out.println("A Gitlet version-control system already exists " +
+                    "in the current directory.");
             return;
         }
         GITLET_DIR.mkdir();
@@ -409,10 +430,14 @@ public class Repository {
 
     public static boolean alreadyCommitted(String name, String sha) {
         Commit c = getHead();
-        if(c.getMap().containsKey(name) && c.getMap().get(name).equals(sha)) {
+        if (c.getMap().containsKey(name) && c.getMap().get(name).equals(sha)) {
             return true;
         }
         return false;
+    }
+
+    public static boolean trackedInBranch(String file) {
+        return getHead().getMap().containsKey(file);
     }
 
     public static Commit getHead() {
@@ -423,9 +448,9 @@ public class Repository {
     }
 
     public static Commit getCommit(String sha) {
-        if(sha.length() < 40) {
+        if (sha.length() < 40) {
             File dir = join(COMMITS, sha.substring(0, 2));
-            if(!dir.exists()) {
+            if (!dir.exists()) {
                 return null;
             }
             if (dir.listFiles().length == 1) {
@@ -433,14 +458,14 @@ public class Repository {
                     return readObject(f, Commit.class);
                 }
             } else {
-                for(File f : dir.listFiles()) {
-                    if(f.getName().startsWith(sha)) {
+                for (File f : dir.listFiles()) {
+                    if (f.getName().startsWith(sha)) {
                         return readObject(f, Commit.class);
                     }
                 }
             }
         }
-        if(join(COMMITS, sha.substring(0, 2), sha).exists()) {
+        if (join(COMMITS, sha.substring(0, 2), sha).exists()) {
             return readObject(join(COMMITS, sha.substring(0, 2), sha), Commit.class);
         }
         return null;

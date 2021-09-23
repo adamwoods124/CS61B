@@ -15,6 +15,7 @@ public class Main {
     public static void main(String[] args) {
         if(args.length == 0) {
             System.out.println("Please enter a command.");
+            return;
         }
         String firstArg = args[0];
         switch(firstArg) {
@@ -70,8 +71,7 @@ public class Main {
                 Repository.reset(args[1]);
                 break;
             default:
-                System.out.println("No command with that name.");
-                System.out.println("Command: " + args);
+                System.out.println("No command with that name exists.");
                 break;
         }
         return;
