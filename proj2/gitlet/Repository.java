@@ -179,13 +179,14 @@ public class Repository {
         if(f.exists()) {
             f.delete();
         }
-
         if(c.getMap().containsKey(fileName)) {
             File m = join(REMOVE, fileName);
+            if(m.isDirectory()) {
+                return;
+            }
             try {
                 m.createNewFile();
             } catch (Exception e) {}
-            writeContents(m, readContentsAsString(join(CWD, fileName)));
             join(CWD, fileName).delete();
         }
     }
@@ -231,6 +232,7 @@ public class Repository {
                 }
             }
         }
+        System.out.println("Found no commit with that message.");
     }
 
     public static void status() {
@@ -269,7 +271,7 @@ public class Repository {
     public static void checkoutCommit(String commit, String fileName) {
         File cf = join(COMMITS, commit.substring(0, 2));
         if(!cf.exists()) {
-            System.out.println("No commit with that ID exists");
+            System.out.println("No commit with that ID exists.");
             return;
         }
         File cwdFile = join(CWD, fileName);
@@ -279,6 +281,10 @@ public class Repository {
             } catch (Exception e) {
                 throw new RuntimeException("Error creating file.");
             }
+        }
+        if(getCommit(commit) == null) {
+            System.out.println("No commit with that id exists.");
+            return;
         }
         Commit c = getCommit(commit);
         if(!c.getMap().containsKey(fileName)) {
@@ -299,24 +305,7 @@ public class Repository {
             System.out.println("No need to checkout the current branch.");
             return;
         }
-        Commit c = getHead();
-        for(String f : Objects.requireNonNull(CWD.list())) {
-            if(f.equals(".gitlet")) {
-                continue;
-            }
-            if(!c.getMap().containsKey(f)) {
-                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
-                return;
-            }
-        }
-        for(File f : Objects.requireNonNull(CWD.listFiles())) {
-            if(!f.equals(".gitlet")) {
-                f.delete();
-            }
-        }
-        for(File f : Objects.requireNonNull(ADD.listFiles())) {
-            f.delete();
-        }
+        clear();
         writeContents(BRANCH, newBranch);
         Commit c2 = getHead();
         for(String s : c2.getMap().keySet()) {
@@ -358,6 +347,51 @@ public class Repository {
         }
         f.delete();
     }
+    public static void reset(String commit) {
+        if(getCommit(commit) == null) {
+            System.out.println("No commit with that id exists.");
+            return;
+        }
+        Commit c = getCommit(commit);
+        clear();
+        for (String s : c.getMap().keySet())  {
+            File f = join(CWD, s);
+            if(!f.exists()) {
+                try {
+                    f.createNewFile();
+                } catch(Exception e) {
+                    System.out.println("Error creating file.");
+                }
+            }
+            String blobName = c.getMap().get(s);
+            String blobContents = readObject(join(BLOBS, blobName), String.class);
+            writeContents(f, blobContents);
+        }
+    }
+
+    public static void clear() {
+        Commit c = getHead();
+        for(String f : Objects.requireNonNull(CWD.list())) {
+            if(f.equals(".gitlet")) {
+                continue;
+            }
+            if(!c.getMap().containsKey(f)) {
+                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                return;
+            }
+        }
+        for (File f : Objects.requireNonNull(CWD.listFiles())) {
+            if(!f.equals(".gitlet")) {
+                f.delete();
+            }
+        }
+        for (File f : Objects.requireNonNull(ADD.listFiles())) {
+            f.delete();
+        }
+        for (File f : Objects.requireNonNull(REMOVE.listFiles())) {
+            f.delete();
+        }
+    }
 
     public static void makeRepositories() {
         if(GITLET_DIR.exists()) {
@@ -391,6 +425,9 @@ public class Repository {
     public static Commit getCommit(String sha) {
         if(sha.length() < 40) {
             File dir = join(COMMITS, sha.substring(0, 2));
+            if(!dir.exists()) {
+                return null;
+            }
             if (dir.listFiles().length == 1) {
                 for (File f : dir.listFiles()) {
                     return readObject(f, Commit.class);
@@ -401,10 +438,12 @@ public class Repository {
                         return readObject(f, Commit.class);
                     }
                 }
-                throw new RuntimeException("No commit with that ID.");
             }
         }
-        return readObject(join(COMMITS, sha.substring(0, 2), sha), Commit.class);
+        if(join(COMMITS, sha.substring(0, 2), sha).exists()) {
+            return readObject(join(COMMITS, sha.substring(0, 2), sha), Commit.class);
+        }
+        return null;
     }
 
 }
