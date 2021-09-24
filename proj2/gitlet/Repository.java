@@ -145,8 +145,11 @@ public class Repository {
         }
         // Get sha of the current head commit, and create a new commit that is a clone of it
         File head = join(BRANCHES, readContentsAsString(BRANCH));
-        String headSha = readContentsAsString(head);
-        Commit c = new Commit(message, headSha, (LinkedList<String>) List.of(readContentsAsString(BRANCH)));
+        String headSha = getHead().getSha();
+
+        LinkedList<String> l = new LinkedList<>();
+        l.add(readContentsAsString(BRANCH));
+        Commit c = new Commit(message, headSha, l);
 
         // Change head pointer to new commit
         String newHead = sha1(serialize(c));
@@ -392,7 +395,7 @@ public class Repository {
         writeContents(join(BRANCHES, readContentsAsString(BRANCH)), c.getSha());
     }
 
-    /*
+
     public static void merge(String otherBranch) {
         if (mergeFailure(otherBranch)) {
             return;
@@ -400,8 +403,11 @@ public class Repository {
         Commit other = getCommit(readContentsAsString(join(BRANCHES, otherBranch)));
         Commit head = getHead();
         Commit split = latestAncestor(otherBranch);
+        LinkedList<String> l = new LinkedList<>();
+        l.add(otherBranch);
+        l.add(readContentsAsString(BRANCH));
         Commit merge = new Commit("Merged " + otherBranch + "into " + readContentsAsString(BRANCH) + ".",
-                split.getSha(), (LinkedList<String>) List.of(otherBranch, readContentsAsString(BRANCH)));
+                split.getSha(), l);
         if (split.getSha().equals(other.getSha())) {
             return;
         }
@@ -436,8 +442,6 @@ public class Repository {
         }
 
     }
-
-     */
 
     public static void clear() {
         for (String f : Objects.requireNonNull(CWD.list())) {

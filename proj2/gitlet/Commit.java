@@ -28,8 +28,8 @@ public class Commit implements Serializable {
         this.date = new Date(0);
         this.parents = null;
         this.map = new TreeMap<>();
-        branch = new LinkedList<>();
-        branch.add("master");
+        this.branch = new LinkedList<>();
+        this.branch.add("master");
     }
 
     public Commit(String message, String parent, LinkedList<String> branch) {
