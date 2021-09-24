@@ -144,7 +144,7 @@ public class Repository {
         // Get sha of the current head commit, and create a new commit that is a clone of it
         File head = join(BRANCHES, readContentsAsString(BRANCH));
         String headSha = readContentsAsString(head);
-        Commit c = new Commit(message, headSha);
+        Commit c = new Commit(message, headSha, readContentsAsString(BRANCH));
 
         // Change head pointer to new commit
         String newHead = sha1(serialize(c));
@@ -225,8 +225,8 @@ public class Repository {
                         System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n",
                                 c.getSha(), c.getDate(), c.getMessage());
                     } else {
-                        System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\n" +
-                                        "Date: %4$s\n%5$s\n\n",
+                        System.out.printf("===\ncommit %1$s\nMerge: %2$s %3$s\n"
+                                        + "Date: %4$s\n%5$s\n\n",
                                 c.getSha(), c.getDate(), c.getParents().get(0).substring(0, 7),
                                 c.getParents().get(1).substring(0, 7), c.getMessage());
                     }
@@ -312,6 +312,31 @@ public class Repository {
         String blobName = c.getMap().get(fileName);
         String blobContents = readObject(join(BLOBS, blobName), String.class);
         writeContents(cwdFile, blobContents);
+    }
+
+    /**
+     * Finds latest common ancestor of current branch and given branch
+     * @param otherBranch name of branch to check
+     * @return first commit that has both current branch and other branch as parents
+     */
+    public Commit latestAncestor(String otherBranch) {
+        Commit c = getHead();
+        while (c.getParents() != null) {
+            if (c.getBranch().contains(otherBranch)) {
+                return c;
+            }
+            if(c.getParents().size() > 1) {
+                Commit c2 = getCommit(c.getParents().get(0));
+                if (c2.getBranch().contains(readContentsAsString(BRANCH))) {
+                    c = c2;
+                } else {
+                    c = getCommit(c.getParents().get(1));
+                }
+            } else {
+                c = getCommit(c.getParents().get(0));
+            }
+        }
+        return null;
     }
 
     public static void checkoutBranch(String newBranch) {
@@ -454,15 +479,9 @@ public class Repository {
             if (!dir.exists()) {
                 return null;
             }
-            if (dir.listFiles().length == 1) {
-                for (File f : dir.listFiles()) {
+            for (File f : dir.listFiles()) {
+                if (f.getName().startsWith(sha)) {
                     return readObject(f, Commit.class);
-                }
-            } else {
-                for (File f : dir.listFiles()) {
-                    if (f.getName().startsWith(sha)) {
-                        return readObject(f, Commit.class);
-                    }
                 }
             }
         }

@@ -17,6 +17,9 @@ public class Main {
             System.out.println("Please enter a command.");
             return;
         }
+        if(!Utils.join(System.getProperty("user.dir"), ".gitlet").exists()) {
+            System.out.println("Not in an initialized Gitlet directory.");
+        }
         String firstArg = args[0];
         switch(firstArg) {
             case "init":
