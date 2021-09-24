@@ -2,6 +2,8 @@ package gitlet;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 
 
@@ -144,7 +146,7 @@ public class Repository {
         // Get sha of the current head commit, and create a new commit that is a clone of it
         File head = join(BRANCHES, readContentsAsString(BRANCH));
         String headSha = readContentsAsString(head);
-        Commit c = new Commit(message, headSha, readContentsAsString(BRANCH));
+        Commit c = new Commit(message, headSha, (LinkedList<String>) List.of(readContentsAsString(BRANCH)));
 
         // Change head pointer to new commit
         String newHead = sha1(serialize(c));
@@ -193,6 +195,7 @@ public class Repository {
             } catch (IOException e) {
                 System.out.println("Error creating file.");
             }
+            c.getMap().remove(fileName);
             join(CWD, fileName).delete();
         }
     }
@@ -389,6 +392,53 @@ public class Repository {
         writeContents(join(BRANCHES, readContentsAsString(BRANCH)), c.getSha());
     }
 
+    /*
+    public static void merge(String otherBranch) {
+        if (mergeFailure(otherBranch)) {
+            return;
+        }
+        Commit other = getCommit(readContentsAsString(join(BRANCHES, otherBranch)));
+        Commit head = getHead();
+        Commit split = latestAncestor(otherBranch);
+        Commit merge = new Commit("Merged " + otherBranch + "into " + readContentsAsString(BRANCH) + ".",
+                split.getSha(), (LinkedList<String>) List.of(otherBranch, readContentsAsString(BRANCH)));
+        if (split.getSha().equals(other.getSha())) {
+            return;
+        }
+        if (split.getSha().equals(head.getSha())) {
+            checkoutBranch(otherBranch);
+            return;
+        }
+
+
+        for (String file : split.getMap().keySet()) {
+            // case 1
+            if (!other.getMap().get(file).equals(split.getMap().get(file))
+                    && head.getMap().get(file).equals(split.getMap().get(file))) {
+                    merge.getMap().put(file, other.getMap().get(file));
+                    File f = join(ADD, file);
+                    if (!f.exists()) {
+                        try {
+                            f.createNewFile();
+                        } catch (IOException e) {
+                            System.out.println("Error creating file");
+                        }
+                    }
+            }
+            // case 2
+            if (!head.getMap().get(file).equals(split.getMap().get(file))
+                    && other.getMap().get(file).equals(split.getMap().get(file))) {
+                merge.getMap().put(file, head.getMap().get(file));
+            }
+
+            // case 3
+
+        }
+
+    }
+
+     */
+
     public static void clear() {
         for (String f : Objects.requireNonNull(CWD.list())) {
             if (f.equals(".gitlet")) {
@@ -436,6 +486,32 @@ public class Repository {
         return false;
     }
 
+    public static boolean mergeFailure(String otherBranch) {
+        Commit head = getHead();
+        Commit other = getCommit(readContentsAsString(join(BRANCHES, otherBranch)));
+        if (!join(BRANCHES, otherBranch).exists()) {
+            System.out.println("A branch with that name does not exist.");
+            return true;
+        }
+        if (Objects.requireNonNull(ADD.list()).length > 0 ||
+                Objects.requireNonNull(REMOVE.list()).length > 0) {
+            System.out.println("You have uncommitted changes.");
+            return true;
+        }
+        if (head.getBranch().contains(otherBranch)) {
+            System.out.println("Cannot merge a branch with itself.");
+            return true;
+        }
+        for (String file : CWD.list()) {
+            if (!head.getMap().containsKey(file) && !other.getMap().containsKey(file)) {
+                System.out.println("There is an untracked file in the way;"
+                       + " delete it, or add and commit it first.");
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static boolean trackedInBranch(String file) {
         return getHead().getMap().containsKey(file);
     }
@@ -453,15 +529,9 @@ public class Repository {
             if (!dir.exists()) {
                 return null;
             }
-            if (dir.listFiles().length == 1) {
-                for (File f : dir.listFiles()) {
+            for (File f : dir.listFiles()) {
+                if (f.getName().startsWith(sha)) {
                     return readObject(f, Commit.class);
-                }
-            } else {
-                for (File f : dir.listFiles()) {
-                    if (f.getName().startsWith(sha)) {
-                        return readObject(f, Commit.class);
-                    }
                 }
             }
         }
@@ -476,13 +546,13 @@ public class Repository {
      * @param otherBranch name of branch to check
      * @return first commit that has both current branch and other branch as parents
      */
-    public Commit latestAncestor(String otherBranch) {
+    public static Commit latestAncestor(String otherBranch) {
         Commit c = getHead();
         while (c.getParents() != null) {
             if (c.getBranch().contains(otherBranch)) {
                 return c;
             }
-            if(c.getParents().size() > 1) {
+            if (c.getParents().size() > 1) {
                 Commit c2 = getCommit(c.getParents().get(0));
                 if (c2.getBranch().contains(readContentsAsString(BRANCH))) {
                     c = c2;

@@ -32,13 +32,15 @@ public class Commit implements Serializable {
         branch.add("master");
     }
 
-    public Commit(String message, String parent, String branch) {
+    public Commit(String message, String parent, LinkedList<String> branch) {
         this.message = message;
         this.date = new Date();
         this.parents = new LinkedList<>();
         this.parents.add(parent);
         this.branch = new LinkedList<>();
-        this.branch.add(branch);
+        for (String s : branch) {
+            this.branch.add(s);
+        }
         File commitsFolder = join(System.getProperty("user.dir"), ".gitlet", "commits");
         File thisFolder = join(commitsFolder, parent.substring(0, 2), parent);
         Commit c = Utils.readObject(thisFolder, Commit.class);
