@@ -21,19 +21,24 @@ public class Commit implements Serializable {
     private LinkedList<String> parents;
     //public static String parent;
     private TreeMap<String, String> map;
+    private LinkedList<String> branch;
 
     public Commit() {
         this.message = "initial commit";
         this.date = new Date(0);
         this.parents = null;
         this.map = new TreeMap<>();
+        branch = new LinkedList<>();
+        branch.add("master");
     }
 
-    public Commit(String message, String parent) {
+    public Commit(String message, String parent, String branch) {
         this.message = message;
         this.date = new Date();
         this.parents = new LinkedList<>();
         this.parents.add(parent);
+        this.branch = new LinkedList<>();
+        this.branch.add(branch);
         File commitsFolder = join(System.getProperty("user.dir"), ".gitlet", "commits");
         File thisFolder = join(commitsFolder, parent.substring(0, 2), parent);
         Commit c = Utils.readObject(thisFolder, Commit.class);
@@ -63,6 +68,10 @@ public class Commit implements Serializable {
 
     public String getSha() {
         return sha1(serialize(this));
+    }
+
+    public LinkedList getBranch() {
+        return branch;
     }
 
 }
