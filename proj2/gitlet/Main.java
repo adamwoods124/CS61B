@@ -70,6 +70,10 @@ public class Main {
                 checkArgs(args, 2);
                 Repository.reset(args[1]);
                 break;
+            case "merge":
+                checkArgs(args, 2);
+                Repository.merge(args[1]);
+                break;
             default:
                 System.out.println("No command with that name exists.");
                 break;

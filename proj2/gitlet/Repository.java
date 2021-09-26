@@ -25,12 +25,10 @@ public class Repository {
     /** Create initial file structure */
     private static File COMMITS = join(GITLET_DIR, "commits");
     private static File BRANCHES = join(COMMITS, "branches");
-    private static File MASTER = join(BRANCHES, "master");
     private static File BLOBS = join(GITLET_DIR, "blobs");
     private static File STAGE = join(GITLET_DIR, "stage");
     private static File ADD = join(STAGE, "add");
     private static File REMOVE = join(STAGE, "rm");
-    private static File BRANCH = join(GITLET_DIR, "branch");
     /**
      * Create initial file structure
      * .gitlet
@@ -51,13 +49,6 @@ public class Repository {
         }
         makeRepositories();
 
-        // Create branch file
-        try {
-            BRANCH.createNewFile();
-        } catch (IOException e) {
-            System.out.println("Error creating branch file.");
-        }
-        writeContents(BRANCH, "master");
          // Create initial commit and serialize it for storage
         Commit initialCommit = new Commit();
         byte[] serializedInitialCommit = serialize(initialCommit);
@@ -73,12 +64,15 @@ public class Repository {
         }
         // Saving the commit persistently
         writeObject(commitFile, initialCommit);
+
+        // Create BranchMap and save persistently
         try {
-            MASTER.createNewFile();
+            BRANCHES.createNewFile();
         } catch (IOException e) {
-            System.out.println("Error creating master file.");
+            System.out.println("Error creating branch file.");
         }
-        writeContents(MASTER, sha1(serializedInitialCommit));
+        BranchMap branchMap = new BranchMap(initialCommit.getSha());
+        writeObject(BRANCHES, branchMap);
     }
 
     /**
@@ -144,13 +138,14 @@ public class Repository {
             return;
         }
         // Get sha of the current head commit, and create a new commit that is a clone of it
-        File head = join(BRANCHES, readContentsAsString(BRANCH));
         String headSha = getHead().getSha();
-
         LinkedList<String> l = new LinkedList<>();
-        l.add(readContentsAsString(BRANCH));
-        Commit c = new Commit(message, headSha, l);
+        l.add(headSha);
+        Commit c = new Commit(message, l);
 
+        for (File f : ADD.listFiles()) {
+            c.getMap().put(f.getName(), sha1(readContentsAsString(f)));
+        }
         // Change head pointer to new commit
         String newHead = sha1(serialize(c));
         File shortDir = join(COMMITS, newHead.substring(0, 2));
@@ -165,7 +160,10 @@ public class Repository {
         }
         // Save commit persistently
         writeObject(f, c);
-        writeContents(head, newHead);
+        // Save branchMap
+        BranchMap branchMap = readObject(BRANCHES, BranchMap.class);
+        branchMap.newCommit(c.getSha(), branchMap.getCurBranch());
+        writeObject(BRANCHES, branchMap);
 
         // Clear staging area
         for (File z : ADD.listFiles()) {
@@ -205,7 +203,7 @@ public class Repository {
 
     public static void log() {
         Commit c = getHead();
-        String sha = readContentsAsString(join(BRANCHES, readContentsAsString(BRANCH)));
+        String sha = c.getSha();
         while (c.getParents() != null) {
             if (c.getParents().size() == 1) {
                 System.out.printf("===\ncommit %1$s\nDate: %2$s\n%3$s\n\n", sha,
@@ -242,9 +240,9 @@ public class Repository {
 
     public static void find(String message) {
         boolean found = false;
-        for (File n : COMMITS.listFiles()) {
+        for (File n : Objects.requireNonNull(COMMITS.listFiles())) {
             if (!n.getName().equals("branches")) {
-                for (File f : n.listFiles()) {
+                for (File f : Objects.requireNonNull(n.listFiles())) {
                     Commit c = readObject(f, Commit.class);
                     if (c.getMessage().equals(message)) {
                         System.out.println(c.getSha());
@@ -259,9 +257,10 @@ public class Repository {
     }
 
     public static void status() {
+        BranchMap branchMap = readObject(BRANCHES, BranchMap.class);
         System.out.println("=== Branches ===");
         for (String s : Objects.requireNonNull(plainFilenamesIn(BRANCHES))) {
-            if (readContentsAsString(BRANCH).equals(s)) {
+            if (branchMap.getCurBranch().equals(s)) {
                 System.out.print("*");
             }
             System.out.println(s);
@@ -320,16 +319,17 @@ public class Repository {
     }
 
     public static void checkoutBranch(String newBranch) {
-        if (!join(BRANCHES, newBranch).exists()) {
+        BranchMap branchMap = readObject(BRANCHES, BranchMap.class);
+        if (!branchMap.getBranches().containsKey(newBranch)) {
             System.out.println("No such branch exists.");
             return;
         }
-        if (newBranch.equals(readContentsAsString(BRANCH))) {
+        if (newBranch.equals(branchMap.getCurBranch())) {
             System.out.println("No need to checkout the current branch.");
             return;
         }
         clear();
-        writeContents(BRANCH, newBranch);
+        branchMap.changeBranch(newBranch);
         Commit c2 = getHead();
         for (String s : c2.getMap().keySet()) {
             File f = join(CWD, s);
@@ -344,33 +344,27 @@ public class Repository {
             String blobContents = readObject(join(BLOBS, blobName), String.class);
             writeContents(f, blobContents);
         }
+        writeObject(BRANCHES, branchMap);
     }
 
     public static void branch(String name) {
-        File f = join(BRANCHES, name);
-        if (f.exists()) {
-            System.out.println("A branch with that name already exists.");
-            return;
-        }
-        try {
-            f.createNewFile();
-        } catch (IOException e) {
-            System.out.println("Error creating file.");
-        }
-        writeContents(f, getHead().getSha());
+        BranchMap branchMap = readObject(BRANCHES, BranchMap.class);
+        branchMap.addBranch(getHead().getSha(), name);
+        writeObject(BRANCHES, branchMap);
     }
 
     public static void removeBranch(String name) {
-        File f = join(BRANCHES, name);
-        if (!f.exists()) {
+        BranchMap branchMap = readObject(BRANCHES, BranchMap.class);
+        if (!branchMap.getBranches().containsKey(name)) {
             System.out.println("A branch with that name does not exist.");
             return;
         }
-        if (name.equals(readContentsAsString(BRANCH))) {
+        if (name.equals(branchMap.getCurBranch())) {
             System.out.println("Cannot remove the current branch.");
             return;
         }
-        f.delete();
+        branchMap.getBranches().remove(name);
+        writeObject(BRANCHES, branchMap);
     }
     public static void reset(String commit) {
         if (getCommit(commit) == null) {
@@ -392,22 +386,28 @@ public class Repository {
             String blobContents = readObject(join(BLOBS, blobName), String.class);
             writeContents(f, blobContents);
         }
-        writeContents(join(BRANCHES, readContentsAsString(BRANCH)), c.getSha());
+        writeObject(join(COMMITS, c.getSha()), c);
+        BranchMap branchMap = readObject(BRANCHES, BranchMap.class);
+        branchMap.newCommit(commit, branchMap.getCurBranch());
+        writeObject(BRANCHES, branchMap);
     }
 
 
     public static void merge(String otherBranch) {
+        BranchMap branchMap = readObject(BRANCHES, BranchMap.class);
+        /*
         if (mergeFailure(otherBranch)) {
+            System.out.println("Encountered a merge conflict.");
             return;
         }
-        Commit other = getCommit(readContentsAsString(join(BRANCHES, otherBranch)));
+         */
+        Commit other = getCommit(branchMap.getBranches().get(otherBranch));
         Commit head = getHead();
         Commit split = latestAncestor(otherBranch);
         LinkedList<String> l = new LinkedList<>();
-        l.add(otherBranch);
-        l.add(readContentsAsString(BRANCH));
-        Commit merge = new Commit("Merged " + otherBranch + "into " + readContentsAsString(BRANCH) + ".",
-                split.getSha(), l);
+        l.add(getHead().getSha());
+        l.add(branchMap.getBranches().get(otherBranch));
+        Commit merge = new Commit("Merged " + otherBranch + "into " + branchMap.getCurBranch() + ".", l);
         if (split.getSha().equals(other.getSha())) {
             return;
         }
@@ -415,32 +415,92 @@ public class Repository {
             checkoutBranch(otherBranch);
             return;
         }
-
+        LinkedList<String> savedFiles = new LinkedList<>();
+        LinkedList<String> filesToStage = new LinkedList<>();
 
         for (String file : split.getMap().keySet()) {
             // case 1
             if (!other.getMap().get(file).equals(split.getMap().get(file))
                     && head.getMap().get(file).equals(split.getMap().get(file))) {
                     merge.getMap().put(file, other.getMap().get(file));
-                    File f = join(ADD, file);
-                    if (!f.exists()) {
-                        try {
-                            f.createNewFile();
-                        } catch (IOException e) {
-                            System.out.println("Error creating file");
-                        }
-                    }
+                    filesToStage.add(file);
             }
             // case 2
-            if (!head.getMap().get(file).equals(split.getMap().get(file))
+            else if (!head.getMap().get(file).equals(split.getMap().get(file))
                     && other.getMap().get(file).equals(split.getMap().get(file))) {
                 merge.getMap().put(file, head.getMap().get(file));
             }
-
-            // case 3
-
+            // case 3.1
+            else if ((!head.getMap().containsKey(file) && !other.getMap().containsKey(file))) {
+                if(join(CWD, file).exists()) {
+                    savedFiles.add(file);
+                }
+            }
+            // case 3.2
+            else if (head.getMap().get(file).equals(other.getMap().get(file))) {
+                merge.getMap().put(file, head.getMap().get(file));
+            }
+            // case 4
+            else if (!split.getMap().containsKey(file) && head.getMap().containsKey(file) && !other.getMap().containsKey(file)) {
+                merge.getMap().put(file, head.getMap().get(file));
+            }
+            // case 5
+            else if (!split.getMap().containsKey(file) && !head.getMap().containsKey(file) && other.getMap().containsKey(file)) {
+                merge.getMap().put(file, other.getMap().get(file));
+                filesToStage.add(file);
+            }
+            // case 6
+            else if (split.getMap().containsKey(file) && split.getMap().get(file).equals(other.getMap().get(file))
+            && !head.getMap().containsKey(file)) {
+                merge.getMap().remove(file);
+            }
+            // case 7
+            else if (!head.getMap().get(file).equals(other.getMap().get(file))) {
+                File f = join(CWD, file);
+                savedFiles.add(file);
+                if (!f.exists()) {
+                    try {
+                        f.createNewFile();
+                    } catch (IOException e) {
+                        System.out.println("Error creating file.");
+                    }
+                }
+                String cur = "";
+                if (head.getMap().containsKey(file)) {
+                    cur = readContentsAsString(join(BLOBS, head.getMap().get(file)));
+                }
+                String otherContents = "";
+                if(other.getMap().containsKey(file)) {
+                    otherContents = readContentsAsString(join(BLOBS, other.getMap().get(file)));
+                }
+                writeContents(f, "<<<<<<< HEAD\n", cur, "=======", otherContents, ">>>>>>>");
+                File f2 = join(BLOBS, sha1(f));
+                byte[] b = serialize(readContentsAsString(f));
+                writeContents(f2, b);
+            }
         }
-
+        for (File f : CWD.listFiles()) {
+            if(f.getName().equals(".gitlet") || savedFiles.contains(f.getName())) {
+                continue;
+            }
+            f.delete();
+        }
+        for (String s : filesToStage) {
+            File f = join(ADD, s);
+            try {
+                f.createNewFile();
+            } catch (IOException e) {
+                System.out.println("Error adding file to staging area.");
+            }
+        }
+        File mergeCommit = join(COMMITS, sha1(merge));
+        try {
+            mergeCommit.createNewFile();
+        } catch (IOException e) {
+            System.out.println("Error.");
+        }
+        writeObject(mergeCommit, merge);
+        writeObject(BRANCHES, branchMap);
     }
 
     public static void clear() {
@@ -475,7 +535,6 @@ public class Repository {
         }
         GITLET_DIR.mkdir();
         COMMITS.mkdir();
-        BRANCHES.mkdir();
         BLOBS.mkdir();
         STAGE.mkdir();
         ADD.mkdir();
@@ -491,10 +550,11 @@ public class Repository {
     }
 
     public static boolean mergeFailure(String otherBranch) {
+        BranchMap branchMap = readObject(BRANCHES, BranchMap.class);
         Commit head = getHead();
         Commit other = getCommit(readContentsAsString(join(BRANCHES, otherBranch)));
         if (!join(BRANCHES, otherBranch).exists()) {
-            System.out.println("A branch with that name does not exist.");
+            //System.out.println("A branch with that name does not exist.");
             return true;
         }
         if (Objects.requireNonNull(ADD.list()).length > 0 ||
@@ -502,7 +562,7 @@ public class Repository {
             System.out.println("You have uncommitted changes.");
             return true;
         }
-        if (head.getBranch().contains(otherBranch)) {
+        if (branchMap.getMap().get(head).contains(otherBranch)) {
             System.out.println("Cannot merge a branch with itself.");
             return true;
         }
@@ -521,8 +581,8 @@ public class Repository {
     }
 
     public static Commit getHead() {
-        File head = join(BRANCHES, readContentsAsString(BRANCH));
-        String headSha = readContentsAsString(head);
+        BranchMap branchMap = readObject(BRANCHES, BranchMap.class);
+        String headSha = branchMap.getBranches().get(branchMap.getCurBranch());
         Commit c = readObject(join(COMMITS, headSha.substring(0, 2), headSha), Commit.class);
         return c;
     }
@@ -552,13 +612,21 @@ public class Repository {
      */
     public static Commit latestAncestor(String otherBranch) {
         Commit c = getHead();
+        BranchMap branchMap = readObject(BRANCHES, BranchMap.class);
+        File log = join(CWD, "log");
+        try {
+            log.createNewFile();
+        } catch (IOException e) {
+            System.out.println("a");
+        }
+
         while (c.getParents() != null) {
-            if (c.getBranch().contains(otherBranch)) {
+            if (branchMap.getMap().get(c.getSha()).contains(otherBranch)) {
                 return c;
             }
             if (c.getParents().size() > 1) {
                 Commit c2 = getCommit(c.getParents().get(0));
-                if (c2.getBranch().contains(readContentsAsString(BRANCH))) {
+                if (c2.getMap().get(c).contains(branchMap.getCurBranch())) {
                     c = c2;
                 } else {
                     c = getCommit(c.getParents().get(1));
@@ -567,7 +635,8 @@ public class Repository {
                 c = getCommit(c.getParents().get(0));
             }
         }
-        return null;
+
+        return branchMap.getMap().get(c).contains(otherBranch) ? c : null;
     }
 
 }
