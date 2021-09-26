@@ -144,7 +144,7 @@ public class Repository {
         // Get sha of the current head commit, and create a new commit that is a clone of it
         File head = join(BRANCHES, readContentsAsString(BRANCH));
         String headSha = readContentsAsString(head);
-        Commit c = new Commit(message, headSha, readContentsAsString(BRANCH));
+        Commit c = new Commit(message, headSha);
 
         // Change head pointer to new commit
         String newHead = sha1(serialize(c));
@@ -312,31 +312,6 @@ public class Repository {
         String blobName = c.getMap().get(fileName);
         String blobContents = readObject(join(BLOBS, blobName), String.class);
         writeContents(cwdFile, blobContents);
-    }
-
-    /**
-     * Finds latest common ancestor of current branch and given branch
-     * @param otherBranch name of branch to check
-     * @return first commit that has both current branch and other branch as parents
-     */
-    public Commit latestAncestor(String otherBranch) {
-        Commit c = getHead();
-        while (c.getParents() != null) {
-            if (c.getBranch().contains(otherBranch)) {
-                return c;
-            }
-            if(c.getParents().size() > 1) {
-                Commit c2 = getCommit(c.getParents().get(0));
-                if (c2.getBranch().contains(readContentsAsString(BRANCH))) {
-                    c = c2;
-                } else {
-                    c = getCommit(c.getParents().get(1));
-                }
-            } else {
-                c = getCommit(c.getParents().get(0));
-            }
-        }
-        return null;
     }
 
     public static void checkoutBranch(String newBranch) {

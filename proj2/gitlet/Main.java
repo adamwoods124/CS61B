@@ -17,7 +17,8 @@ public class Main {
             System.out.println("Please enter a command.");
             return;
         }
-        if(!Utils.join(System.getProperty("user.dir"), ".gitlet").exists()) {
+        if(!Utils.join(System.getProperty("user.dir"), ".gitlet").exists()
+                && !args[0].equals("init")) {
             System.out.println("Not in an initialized Gitlet directory.");
         }
         String firstArg = args[0];
@@ -77,7 +78,6 @@ public class Main {
                 System.out.println("No command with that name exists.");
                 break;
         }
-        return;
     }
 
     public static void checkArgs(String[] args, int n) {
